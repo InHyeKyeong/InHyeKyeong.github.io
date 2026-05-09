@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>맛집 지도</title>
+
+  <script src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=p5l07uvu4i"></script>
+
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      font-family: Arial;
+    }
+
+    #map {
+      width: 70%;
+      height: 100vh;
+      position: relative;
+    }
+
+    #list {
+      width: 30%;
+      height: 100vh;
+      overflow-y: auto;
+      border-left: 1px solid #ddd;
+    }
+
+    .item {
+      padding: 12px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+    }
+
+    .item:hover {
+      background: #f5f5f5;
+    }
+
+    /* 🔥 이미지 확대 레이어 */
+    #lightbox {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.8);
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+
+    #lightbox img {
+      max-width: 90%;
+      max-height: 90%;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div id="map"></div>
+<div id="list"></div>
+
+<!-- 🔥 이미지 확대 -->
+<div id="lightbox">
+  <img id="lightbox-img">
+</div>
+
+<script>
+
+var map = new naver.maps.Map('map', {
+  center: new naver.maps.LatLng(36.6000, 127.5100),
+  zoom: 12
+});
+
+var listEl = document.getElementById("list");
+var openInfoWindow = null;
+
+// 🍽️ 맛집 데이터
+var places = [
+  {
+    name: "추정리 국밥집",
+    category: "한식",
+    addr: "낭성면 추정리",
+    phone: "010-1234-5678",
+    rating: 4.3,
+    img: "https://drive.google.com/thumbnail?id=1m4Q_NjJbHr5_-8pjsHlOMIslPa_60j1-&sz=w1000",
+    lat: 36.5968,
+    lng: 127.5092,
+    color: "red"
+  },
+  {
+    name: "낭성 칼국수",
+    category: "한식",
+    addr: "낭성면 중심",
+    phone: "010-2222-3333",
+    rating: 4.1,
+    img: "https://images.unsplash.com/photo-1585032226651-759b368d7246",
+    lat: 36.6020,
+    lng: 127.5150,
+    color: "blue"
+  },
+  {
+    name: "전하울길 분식",
+    category: "분식",
+    addr: "전하울길 78-9",
+    phone: "010-9999-8888",
+    rating: 4.0,
+    img: "https://images.unsplash.com/photo-1606755962773-d324e0a13086",
+    lat: 36.5985,
+    lng: 127.5075,
+    color: "green"
+  }
+];
+
+// 🔥 이미지 확대 함수
+function openLightbox(imgUrl) {
+  document.getElementById("lightbox-img").src = imgUrl;
+  document.getElementById("lightbox").style.display = "flex";
+}
+
+// 🔥 닫기
+document.getElementById("lightbox").addEventListener("click", function () {
+  this.style.display = "none";
+});
+
+places.forEach(function(p) {
+
+  // 📍 마커
+  var marker = new naver.maps.Marker({
+    position: new naver.maps.LatLng(p.lat, p.lng),
+    map: map,
+    icon: {
+      content: `
+        <div style="
+          width:14px;
+          height:14px;
+          background:${p.color};
+          border-radius:50%;
+          border:2px solid white;
+          box-shadow:0 2px 6px rgba(0,0,0,0.3);
+        "></div>
+      `
+    }
+  });
+
+  // 🧾 팝업 (이미지 클릭 → 확대)
+  var content = `
+    <div style="width:220px; font-size:13px; padding:10px;">
+      <img src="${p.img}"
+        onclick="openLightbox('${p.img}')"
+        style="
+          width:100%;
+          height:100px;
+          object-fit:cover;
+          border-radius:8px;
+          margin-bottom:6px;
+          cursor:pointer;
+        "
+      />
+
+      <b>${p.name}</b><br/>
+      🍽️ ${p.category}<br/>
+      📍 ${p.addr}<br/>
+      📞 ${p.phone}<br/>
+      ⭐ ${p.rating}
+    </div>
+  `;
+
+  var infoWindow = new naver.maps.InfoWindow({
+    content: content,
+    borderWidth: 0,
+    backgroundColor: "white",
+    pixelOffset: new naver.maps.Point(15, -10)
+  });
+
+  function openPopup() {
+
+    if (openInfoWindow) {
+      openInfoWindow.close();
+    }
+
+    infoWindow.open(map, marker);
+    openInfoWindow = infoWindow;
+
+    map.setCenter(new naver.maps.LatLng(p.lat, p.lng));
+    map.setZoom(15);
+  }
+
+  naver.maps.Event.addListener(marker, "click", openPopup);
+
+  var item = document.createElement("div");
+  item.className = "item";
+  item.innerHTML = `
+    <b>${p.name}</b><br/>
+    <small>${p.addr}</small>
+  `;
+
+  listEl.appendChild(item);
+
+  item.addEventListener("click", openPopup);
+
+});
+
+</script>
+
+</body>
+</html>
