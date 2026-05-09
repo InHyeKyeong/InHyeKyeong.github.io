@@ -1,206 +1,360 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
-  <meta charset="utf-8">
-  <title>맛집 지도</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <script src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=p5l07uvu4i"></script>
+<title>맛집 지도</title>
 
-  <style>
-    body {
-      margin: 0;
-      display: flex;
-      font-family: Arial;
-    }
+<script src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=p5l07uvu4i"></script>
 
-    #map {
-      width: 70%;
-      height: 100vh;
-      position: relative;
-    }
+<style>
 
-    #list {
-      width: 30%;
-      height: 100vh;
-      overflow-y: auto;
-      border-left: 1px solid #ddd;
-    }
+*{box-sizing:border-box;}
 
-    .item {
-      padding: 12px;
-      border-bottom: 1px solid #eee;
-      cursor: pointer;
-    }
+body{
+  margin:0;
+  display:flex;
+  font-family:Arial;
+}
 
-    .item:hover {
-      background: #f5f5f5;
-    }
+#map{
+  width:70%;
+  height:100vh;
+}
 
-    /* 🔥 이미지 확대 레이어 */
-    #lightbox {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.8);
-      justify-content: center;
-      align-items: center;
-      z-index: 9999;
-    }
+#side{
+  width:30%;
+  height:100vh;
+  overflow-y:auto;
+  border-left:1px solid #ddd;
+  display:flex;
+  flex-direction:column;
+}
 
-    #lightbox img {
-      max-width: 90%;
-      max-height: 90%;
-      border-radius: 10px;
-    }
-  </style>
+#filters{
+  position:sticky;
+  top:0;
+  background:white;
+  z-index:10;
+  padding:10px;
+  border-bottom:1px solid #eee;
+}
+
+#filters button{
+  margin:3px;
+  padding:6px 10px;
+  border:none;
+  border-radius:6px;
+  background:#f1f3f5;
+  cursor:pointer;
+}
+
+.district-title{
+  padding:10px;
+  background:#f5f5f5;
+  font-weight:bold;
+}
+
+.item{
+  padding:12px;
+  border-bottom:1px solid #eee;
+  cursor:pointer;
+}
+
+.item:hover{
+  background:#f0f6ff;
+}
+
+#lightbox{
+  display:none;
+  position:fixed;
+  top:0;left:0;
+  width:100%;height:100%;
+  background:rgba(0,0,0,0.8);
+  justify-content:center;
+  align-items:center;
+  z-index:9999;
+}
+
+#lightbox img{
+  max-width:90%;
+  max-height:90%;
+  border-radius:10px;
+}
+
+</style>
 </head>
 
 <body>
 
 <div id="map"></div>
-<div id="list"></div>
 
-<!-- 🔥 이미지 확대 -->
+<div id="side">
+  <div id="filters"></div>
+  <div id="list"></div>
+</div>
+
 <div id="lightbox">
   <img id="lightbox-img">
 </div>
 
 <script>
 
+/* =====================
+   MAP
+===================== */
+
 var map = new naver.maps.Map('map', {
-  center: new naver.maps.LatLng(36.6000, 127.5100),
+  center: new naver.maps.LatLng(36.6357,127.4917),
   zoom: 12
 });
 
-var listEl = document.getElementById("list");
-var openInfoWindow = null;
+/* =====================
+   STATE
+===================== */
 
-// 🍽️ 맛집 데이터
+var listEl = document.getElementById("list");
+var filtersEl = document.getElementById("filters");
+
+var openInfoWindow = null;
+var markers = [];
+
+/* =====================
+   DATA
+===================== */
+
 var places = [
   {
-    name: "추정리 국밥집",
-    category: "한식",
-    addr: "낭성면 추정리",
-    phone: "010-1234-5678",
-    rating: 4.3,
-    img: "https://drive.google.com/thumbnail?id=1m4Q_NjJbHr5_-8pjsHlOMIslPa_60j1-&sz=w1000",
-    lat: 36.5968,
-    lng: 127.5092,
-    color: "red"
+    name:"추정리 국밥집",
+    district:"상당구",
+    category:"한식",
+    addr:"낭성면 추정리",
+    phone:"010-1234-5678",
+    rating:4.3,
+    img:"https://drive.google.com/thumbnail?id=1m4Q_NjJbHr5_-8pjsHlOMIslPa_60j1-&sz=w1000",
+    lat:36.5968,
+    lng:127.5092
   },
   {
-    name: "낭성 칼국수",
-    category: "한식",
-    addr: "낭성면 중심",
-    phone: "010-2222-3333",
-    rating: 4.1,
-    img: "https://images.unsplash.com/photo-1585032226651-759b368d7246",
-    lat: 36.6020,
-    lng: 127.5150,
-    color: "blue"
+    name:"체크 1",
+    district:"청원구",
+    category:"한식",
+    addr:"청원구",
+    phone:"010-1234-5678",
+    rating:4.3,
+    img:"https://drive.google.com/thumbnail?id=1m4Q_NjJbHr5_-8pjsHlOMIslPa_60j1-&sz=w1000",
+    lat:36.5938,
+    lng:127.5091
   },
   {
-    name: "전하울길 분식",
-    category: "분식",
-    addr: "전하울길 78-9",
-    phone: "010-9999-8888",
-    rating: 4.0,
-    img: "https://images.unsplash.com/photo-1606755962773-d324e0a13086",
-    lat: 36.5985,
-    lng: 127.5075,
-    color: "green"
+    name:"낭성 칼국수",
+    district:"서원구",
+    category:"한식",
+    addr:"낭성면 중심",
+    phone:"010-2222-3333",
+    rating:4.1,
+    img:"https://images.unsplash.com/photo-1585032226651-759b368d7246",
+    lat:36.6020,
+    lng:127.5150
+  },
+  {
+    name:"전하울길 분식",
+    district:"흥덕구",
+    category:"분식",
+    addr:"호정전하울길 78-9",
+    phone:"010-9999-8888",
+    rating:4.0,
+    img:"https://images.unsplash.com/photo-1606755962773-d324e0a13086",
+    lat:36.5985,
+    lng:127.5075
   }
 ];
 
-// 🔥 이미지 확대 함수
-function openLightbox(imgUrl) {
-  document.getElementById("lightbox-img").src = imgUrl;
-  document.getElementById("lightbox").style.display = "flex";
+/* =====================
+   COLOR
+===================== */
+
+var districtColor = {
+  "상당구":"red",
+  "서원구":"blue",
+  "흥덕구":"green",
+  "청원구":"orange"
+};
+
+/* =====================
+   LIGHTBOX
+===================== */
+
+function openLightbox(img){
+  document.getElementById("lightbox-img").src = img;
+  document.getElementById("lightbox").style.display="flex";
 }
 
-// 🔥 닫기
-document.getElementById("lightbox").addEventListener("click", function () {
-  this.style.display = "none";
-});
+document.getElementById("lightbox").onclick=function(){
+  this.style.display="none";
+};
 
-places.forEach(function(p) {
+/* =====================
+   GROUP
+===================== */
 
-  // 📍 마커
+function groupByDistrict(data){
+  return data.reduce((acc,cur)=>{
+    if(!acc[cur.district]) acc[cur.district]=[];
+    acc[cur.district].push(cur);
+    return acc;
+  },{});
+}
+
+/* =====================
+   POPUP (🔥 지도 이동 없음)
+===================== */
+
+function openPopup(p){
+
+  var found = markers.find(m=>m.data.name===p.name);
+  if(!found) return;
+
+  var marker = found.marker;
+
+  var destination = encodeURIComponent(p.name + " " + p.addr);
+
+  var url =
+  `https://map.naver.com/v5/directions/-/-/${p.lng},${p.lat},${destination},-/-/`;
+
+  var content = `
+    <div style="width:230px;padding:10px;font-size:13px;">
+
+      <img src="${p.img}"
+        style="width:100%;height:110px;object-fit:cover;border-radius:8px;margin-bottom:8px;">
+
+      <b>${p.name}</b><br>
+      📍 ${p.addr}<br>
+      📞 ${p.phone}<br>
+      ⭐ ${p.rating}
+
+      <a href="${url}" target="_blank"
+        style="display:block;margin-top:10px;padding:10px;
+        background:#03c75a;color:#fff;text-align:center;
+        border-radius:8px;text-decoration:none;font-weight:bold;">
+        🧭 길찾기
+      </a>
+
+    </div>
+  `;
+
+  var info = new naver.maps.InfoWindow({
+    content: content,
+    borderWidth: 0,
+    pixelOffset: new naver.maps.Point(15, -10)
+  });
+
+  if(openInfoWindow){
+    openInfoWindow.close();
+  }
+
+  info.open(map, marker);
+  openInfoWindow = info;
+
+  /* 🚫 지도 이동 완전 제거
+     map.setCenter ❌
+     map.setZoom ❌
+  */
+}
+
+/* =====================
+   MARKERS (hover 유지)
+===================== */
+
+places.forEach(p=>{
+
   var marker = new naver.maps.Marker({
-    position: new naver.maps.LatLng(p.lat, p.lng),
+    position: new naver.maps.LatLng(p.lat,p.lng),
     map: map,
-    icon: {
-      content: `
-        <div style="
-          width:14px;
-          height:14px;
-          background:${p.color};
-          border-radius:50%;
-          border:2px solid white;
-          box-shadow:0 2px 6px rgba(0,0,0,0.3);
-        "></div>
+    icon:{
+      content:`
+        <div style="width:14px;height:14px;
+        background:${districtColor[p.district]};
+        border-radius:50%;border:2px solid white;"></div>
       `
     }
   });
 
-  // 🧾 팝업 (이미지 클릭 → 확대)
-  var content = `
-    <div style="width:220px; font-size:13px; padding:10px;">
-      <img src="${p.img}"
-        onclick="openLightbox('${p.img}')"
-        style="
-          width:100%;
-          height:100px;
-          object-fit:cover;
-          border-radius:8px;
-          margin-bottom:6px;
-          cursor:pointer;
-        "
-      />
-
-      <b>${p.name}</b><br/>
-      🍽️ ${p.category}<br/>
-      📍 ${p.addr}<br/>
-      📞 ${p.phone}<br/>
-      ⭐ ${p.rating}
-    </div>
-  `;
-
-  var infoWindow = new naver.maps.InfoWindow({
-    content: content,
-    borderWidth: 0,
-    backgroundColor: "white",
-    pixelOffset: new naver.maps.Point(15, -10)
+  /* hover → popup */
+  naver.maps.Event.addListener(marker, "mouseover", function(){
+    openPopup(p);
   });
 
-  function openPopup() {
-
-    if (openInfoWindow) {
-      openInfoWindow.close();
-    }
-
-    infoWindow.open(map, marker);
-    openInfoWindow = infoWindow;
-
-    map.setCenter(new naver.maps.LatLng(p.lat, p.lng));
-    map.setZoom(15);
-  }
-
-  naver.maps.Event.addListener(marker, "click", openPopup);
-
-  var item = document.createElement("div");
-  item.className = "item";
-  item.innerHTML = `
-    <b>${p.name}</b><br/>
-    <small>${p.addr}</small>
-  `;
-
-  listEl.appendChild(item);
-
-  item.addEventListener("click", openPopup);
+  markers.push({marker,data:p});
 
 });
+
+/* =====================
+   MAP CLICK CLOSE
+===================== */
+
+naver.maps.Event.addListener(map, "click", function(){
+
+  if(openInfoWindow){
+    openInfoWindow.close();
+    openInfoWindow = null;
+  }
+
+});
+
+/* =====================
+   FILTER + LIST
+===================== */
+
+function createFilters(){
+
+  var districts=[...new Set(places.map(p=>p.district))];
+
+  var all=document.createElement("button");
+  all.innerText="전체";
+  all.onclick=()=>render(places);
+  filtersEl.appendChild(all);
+
+  districts.forEach(d=>{
+    var btn=document.createElement("button");
+    btn.innerText=d;
+    btn.onclick=()=>render(places.filter(p=>p.district===d));
+    filtersEl.appendChild(btn);
+  });
+
+}
+
+function render(data){
+
+  listEl.innerHTML="";
+
+  var grouped = groupByDistrict(data);
+
+  Object.keys(grouped).forEach(d=>{
+
+    var title=document.createElement("div");
+    title.className="district-title";
+    title.innerText=`${d} (${grouped[d].length})`;
+    listEl.appendChild(title);
+
+    grouped[d].forEach(p=>{
+
+      var item=document.createElement("div");
+      item.className="item";
+      item.innerHTML=`<b>${p.name}</b><br><small>${p.addr}</small>`;
+      item.onclick=()=>openPopup(p);
+      listEl.appendChild(item);
+
+    });
+
+  });
+
+}
+
+/* INIT */
+createFilters();
+render(places);
 
 </script>
 
